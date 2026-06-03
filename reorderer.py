@@ -6,7 +6,7 @@ class Reorderer:
 
     # Find the full set of steps to reorder the sequence
     def find_solution(self, seq):
-        if self.algo not in ['insertion', 'hybrid']:
+        if self.algo not in ['insertion', 'hybrid', 'furthest']:
             raise Exception(f"Unknown reordering algorithm: {algo}")
         seq_len = len(seq)
         moves = []
@@ -14,7 +14,12 @@ class Reorderer:
             blocks = self.identify_blocks(seq)
             if len(blocks) < 2:
                 break
-            if self.algo == 'hybrid':
+            if self.algo == 'furthest':
+                best_move = self.furthest_move(blocks, seq)
+                moves.append(best_move)
+                seq = best_move.perform_move(seq)
+                continue
+            elif self.algo == 'hybrid':
                 connect_move = self.connector_move(blocks, seq_len)
                 if connect_move is not None:
                     moves.append(connect_move)
@@ -97,17 +102,69 @@ class Reorderer:
             range_start += len(curr_block)
         return None
 
+    # Returns every move block movement possible that would cause at least two blocks to merge
+    # Returns them as a list of moves
+    # Allows use of mathematical heuristics to evaluate best move to make
+    @staticmethod
+    def get_all_merging_moves(blocks, seq_len):
+        first_array = [None] * seq_len
+        last_array = [None] * seq_len
+        insert_before = 0
+        for block in blocks:
+            first_array[block[0]] = insert_before
+            last_array[block[-1]] = insert_before + len(block)
+            insert_before += len(block)
+
+        ret_moves = []
+        range_start = 0
+        for curr_block in blocks:
+            if curr_block[0] != 0:
+                right_merge = last_array[curr_block[0] - 1]
+                ret_moves.append(Move(range_start, len(curr_block), right_merge))
+            if curr_block[-1] != seq_len - 1:
+                left_merge = first_array[curr_block[-1] + 1]
+                ret_moves.append(Move(range_start, len(curr_block), left_merge))
+            range_start += len(curr_block)
+        return ret_moves
+
+    @staticmethod
+    def furthest_move(blocks, seq):
+        move_options = Reorderer.get_all_merging_moves(blocks, len(seq))
+        max_metric = -9999999
+        best_move = None
+        for move in move_options:
+            distance_ideal = abs(seq[move.range_start] - move.insert_before)
+            distance_move = abs(move.range_start - move.insert_before)
+            metric = distance_move - distance_ideal
+            if metric > max_metric:
+                max_metric = metric
+                best_move = move
+        return best_move
+
+
+
+
+
 # Rudimentary testing
 def main():
+    seq = [1, 3, 4, 2, 0]
+    blocks = Reorderer.identify_blocks(seq)
+    all_moves = Reorderer.get_all_merging_moves(blocks, len(seq))
+    print(f"All possible merging moves for {seq}")
+    for move in all_moves:
+        print(move)
+        print(move.perform_move(seq.copy()))
+
     sequences = [
         [],
         [0, 1, 2, 3],
         [4, 3, 2, 1, 0],
         [4, 5, 1, 2, 3, 7, 6, 0],
-        [1, 2, 4, 5, 3, 6, 7, 0]
+        [1, 2, 4, 5, 3, 6, 7, 0],
+        [2, 3, 4, 7, 8, 5, 0, 6, 1]
     ]
 
-    r = Reorderer("hybrid")
+    r = Reorderer("furthest")
 
     for seq in sequences:
         print(f"\nFinding solution for: {seq}")

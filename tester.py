@@ -4,10 +4,41 @@ class Tester:
     def __init__(self, alg): # TODO: Find a better parameter name
         self.alg = alg
 
-    def run_tests(self, count, length, gen):
+    def test_random(self, count, length):
+        correct = 0
+        moves_total = 0
         for i in range(0, count):
-            seq = reverseSeq(length)
-    
+            seq = self.random_seq(length)
+            moves = self.alg.find_solution(seq)
+            for move in moves:
+                seq = move.perform_move(seq)
+            if self.check_seq(seq, length):
+                correct += 1
+                moves_total += len(moves)
+        return {
+            "total": count,
+            "correct": correct,
+            "avg_moves": moves_total / correct
+        }
+
+    def test_blocked(self, count, blocks, block_length):
+        length = blocks * block_length
+        correct = 0
+        moves_total = 0
+        for i in range(0, count):
+            seq = self.blocked_seq(blocks, block_length)
+            moves = self.alg.find_solution(seq)
+            for move in moves:
+                seq = move.perform_move(seq)
+            if self.check_seq(seq, length):
+                correct += 1
+                moves_total += len(moves)
+        return {
+            "total": count,
+            "correct": correct,
+            "avg_moves": moves_total / correct
+        }
+
 
     @staticmethod
     def check_seq(seq, length): # length is the intended length
@@ -22,11 +53,13 @@ class Tester:
     def reverse_seq(length):
         return list(reversed(range(0, length)))
 
+    @staticmethod
     def random_seq(length):
         seq = list(range(0, length))
         random.shuffle(seq)
         return seq
 
+    @staticmethod
     def blocked_seq(block_count, block_len):
         blocks = []
         for i in range(0, block_count):
